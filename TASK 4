@@ -1,0 +1,100 @@
+ !pip install pulp
+# Optimization Model: Production Planning Example (Corrected for Colab)
+
+# Problem:
+# A company produces two products, A and B.  Each product requires time on two machines: Machine 1 and Machine 2.
+# The company wants to determine how many units of each product to produce to maximize profit, given the limited
+# machine time available.
+
+# Data:
+# - Profit per unit of A: $10
+# - Profit per unit of B: $15
+# - Machine 1 time per unit of A: 2 hours
+# - Machine 1 time per unit of B: 3 hours
+# - Machine 2 time per unit of A: 4 hours
+# - Machine 2 time per unit of B: 2 hours
+# - Machine 1 total available time: 100 hours
+# - Machine 2 total available time: 120 hours
+
+# Import PuLP
+import pulp
+
+# 1. Define the Problem
+# Create a linear programming problem object
+# pulp.LpMaximize means we are trying to maximize the objective function
+prob = pulp.LpProblem("Production Planning", pulp.LpMaximize)
+
+# 2. Define Decision Variables
+# These are the variables we want to find the optimal values for
+# pulp.LpVariable defines a continuous variable that can take any non-negative value
+A = pulp.LpVariable('A', lowBound=0, cat='Continuous')  # Number of units of product A to produce
+B = pulp.LpVariable('B', lowBound=0, cat='Continuous')  # Number of units of product B to produce
+
+# 3. Define the Objective Function
+# This is the function we want to maximize (or minimize)
+# In this case, we want to maximize total profit
+prob += 10 * A + 15 * B, "Total Profit"  # Objective: Maximize 10A + 15B
+
+# 4. Define the Constraints
+# These are the restrictions on the decision variables
+# Machine 1 Constraint:  2A + 3B <= 100 (Machine 1 time)
+prob += 2 * A + 3 * B <= 100, "Machine 1 Time"
+
+# Machine 2 Constraint:  4A + 2B <= 120 (Machine 2 time)
+prob += 4 * A + 2 * B <= 120, "Machine 2 Time"
+
+# 5. Solve the Problem
+# Use the PuLP solver to find the optimal solution
+prob.solve()
+
+# 6. Print the Results
+print("Status:", pulp.LpStatus[prob.status])  # Check if the solution is optimal
+
+print("Optimal Production Plan:")
+print("Product A:", A.varValue)  # Optimal number of units of product A
+print("Product B:", B.varValue)  # Optimal number of units of product B
+
+print("Total Profit:", pulp.value(prob.objective))  # Maximum total profit
+
+# 7. Sensitivity Analysis and Insights (Optional but Important)
+
+# Shadow Prices (Dual Values):  How much would the objective function increase if we relaxed a constraint by one unit?
+#  This tells us how valuable it would be to increase machine time.
+print("\nShadow Prices (Dual Values):")
+for name, constraint in prob.constraints.items():
+    print(f"{name}: {constraint.pi}")
+
+# Slack or Surplus: How much unused capacity is there for each constraint?
+# This tells us which constraints are binding (fully utilized) and which have spare capacity.
+print("\nSlack/Surplus:")
+for name, constraint in prob.constraints.items():
+    print(f"{name}: {constraint.slack}")
+
+
+# 8.  Additional Analysis (Example - Cost of increasing machine time)
+
+#  Suppose we can increase Machine 1 time by 10 hours for a cost of $20.  Is it worth it?
+#  The shadow price for Machine 1 tells us the *increase* in profit from an extra hour.
+#  We need to compare that increase to the *cost* of the extra hour.
+
+# Accessing the constraints correctly using prob.constraints[constraint_name].slack/pi
+machine1_shadow_price = prob.constraints["Machine_1_Time"].pi # Corrected constraint name
+
+cost_per_hour = 2  # $20 / 10 hours
+
+if machine1_shadow_price > cost_per_hour:
+    print("\nIt is profitable to increase Machine 1 time.")
+    profit_increase = (machine1_shadow_price - cost_per_hour) * 10
+    print(f"Estimated profit increase: ${profit_increase}")
+else:
+    print("\nIt is NOT profitable to increase Machine 1 time.")
+
+
+# Further Insights and Actions:
+# - **Bottleneck Identification:**  The constraints with zero slack are the bottlenecks. Focus on increasing capacity
+#   for those machines.
+# - **Pricing Strategies:**  Consider adjusting the prices of products A and B based on their impact on profit.
+# - **Resource Allocation:**  The shadow prices help in deciding where to invest resources (e.g., training, maintenance) to
+#   increase overall profitability.
+# - **Market Analysis:**  If demand for one product is high, and the model shows it's profitable to produce more, explore
+#   market opportunities.
